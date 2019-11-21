@@ -17,7 +17,10 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
 from utils import weights_init, compute_acc
-from network import _netG, _netD, _netD_CIFAR10, _netG_CIFAR10
+from models.generator_imagenet import _netG
+from models.discriminator_imagenet import _netD
+from models.generator_cifar import _netG_CIFAR10
+from models.discriminator_cifar import _netD_CIFAR10
 from folder import ImageFolder
 from embedders import BERTEncoder
 
