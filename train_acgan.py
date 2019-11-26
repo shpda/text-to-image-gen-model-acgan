@@ -24,6 +24,8 @@ from models.discriminator_cifar import _netD_CIFAR10
 from folder import ImageFolder
 from embedders import BERTEncoder
 
+from tensorboardX import SummaryWriter
+
 cifar_text_labels = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 
 parser = argparse.ArgumentParser()
@@ -35,14 +37,14 @@ parser.add_argument('--imageSize', type=int, default=128, help='the height / wid
 parser.add_argument('--nz', type=int, default=200, help='size of the latent z vector')
 parser.add_argument('--ngf', type=int, default=64)
 parser.add_argument('--ndf', type=int, default=64)
-parser.add_argument('--niter', type=int, default=25, help='number of epochs to train for')
+parser.add_argument('--n_epochs', type=int, default=25, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
-parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
+parser.add_argument('--output_dir', default='.', help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--embed_size', default=100, type=int, help='embed size')
 parser.add_argument('--num_classes', type=int, default=10, help='Number of classes for AC-GAN')
@@ -51,14 +53,16 @@ parser.add_argument('--gpu_id', type=int, default=0, help='The ID of the specifi
 opt = parser.parse_args()
 print(opt)
 
+# make output dirs
+os.makedirs(os.path.join(opt.output_dir, "models"), exist_ok=True)
+os.makedirs(os.path.join(opt.output_dir, "samples"), exist_ok=True)
+os.makedirs(os.path.join(opt.output_dir, "tensorboard"), exist_ok=True)
+
+writer = SummaryWriter(log_dir=os.path.join(opt.output_dir, "tensorboard"), comment='Cifar10')
+
 # specify the gpu id if using only 1 gpu
 if opt.ngpu == 1:
     os.environ['CUDA_VISIBLE_DEVICES'] = str(opt.gpu_id)
-
-try:
-    os.makedirs(opt.outf)
-except OSError:
-    pass
 
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
@@ -176,7 +180,7 @@ optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 avg_loss_D = 0.0
 avg_loss_G = 0.0
 avg_loss_A = 0.0
-for epoch in range(opt.niter):
+for epoch in range(opt.n_epochs):
     for i, data in enumerate(dataloader, 0):
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
@@ -254,18 +258,21 @@ for epoch in range(opt.niter):
         avg_loss_A = all_loss_A / (curr_iter + 1)
 
         print('[%d/%d][%d/%d] Loss_D: %.4f (%.4f) Loss_G: %.4f (%.4f) D(x): %.4f D(G(z)): %.4f / %.4f Acc: %.4f (%.4f)'
-              % (epoch, opt.niter, i, len(dataloader),
+              % (epoch, opt.n_epochs, i, len(dataloader),
                  errD.item(), avg_loss_D, errG.item(), avg_loss_G, D_x, D_G_z1, D_G_z2, accuracy, avg_loss_A))
+
+        batches_done = epoch * len(dataloader) + i
+        writer.add_scalar('train/loss_d', avg_loss_D, batches_done)
+        writer.add_scalar('train/loss_g', avg_loss_G, batches_done)
+        writer.add_scalar('train/loss_a', avg_loss_A, batches_done)
+
         if i % 100 == 0:
-            vutils.save_image(
-                real_cpu, '%s/real_samples.png' % opt.outf)
+            vutils.save_image(real_cpu, os.path.join(opt.output_dir, 'samples', 'real_samples_{}.png'.format(epoch)))
             print('Label for eval = {}'.format(eval_label))
             fake = netG(eval_noise)
-            vutils.save_image(
-                fake.data,
-                '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch)
-            )
+            vutils.save_image(fake.data, os.path.join(opt.output_dir, 'samples', 'fake_samples_{}.png'.format(epoch)))
 
     # do checkpointing
-    torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
-    torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))
+    torch.save(netG.state_dict(), os.path.join(opt.output_dir, 'models', 'netG_epoch_{}.pt'.format(epoch)))
+    torch.save(netD.state_dict(), os.path.join(opt.output_dir, 'models', 'netD_epoch_{}.pt'.format(epoch)))
+
