@@ -16,7 +16,7 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
-from utils import weights_init, compute_acc
+from utils import weights_init, compute_acc, sample_image
 from models.generator_imagenet import _netG
 from models.discriminator_imagenet import _netD
 from models.generator_cifar import _netG_CIFAR10
@@ -25,6 +25,8 @@ from folder import ImageFolder
 from embedders import BERTEncoder
 
 from tensorboardX import SummaryWriter
+
+from data import CIFAR10Dataset, Imagenet32Dataset
 
 cifar_text_labels = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 
@@ -49,16 +51,39 @@ parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--embed_size', default=100, type=int, help='embed size')
 parser.add_argument('--num_classes', type=int, default=10, help='Number of classes for AC-GAN')
 parser.add_argument('--gpu_id', type=int, default=0, help='The ID of the specified GPU')
+parser.add_argument('--debug', type=bool, default=False, help='Debugging')
 
 opt = parser.parse_args()
 print(opt)
 
-# make output dirs
+################# make output dirs #####################
 os.makedirs(os.path.join(opt.output_dir, "models"), exist_ok=True)
 os.makedirs(os.path.join(opt.output_dir, "samples"), exist_ok=True)
 os.makedirs(os.path.join(opt.output_dir, "tensorboard"), exist_ok=True)
 
 writer = SummaryWriter(log_dir=os.path.join(opt.output_dir, "tensorboard"), comment='Cifar10')
+
+################# load data #####################
+print("loading dataset")
+if opt.dataset == "imagenet":
+    train_dataset = Imagenet32Dataset(train=True, max_size=1 if opt.debug else -1)
+    val_dataset = Imagenet32Dataset(train=0, max_size=1 if opt.debug else -1)
+else:
+    assert opt.dataset == "cifar10"
+    train_dataset = CIFAR10Dataset(train=True, max_size=1 if opt.debug else -1)
+    val_dataset = CIFAR10Dataset(train=0, max_size=1 if opt.debug else -1)
+
+print("creating dataloaders")
+train_dataloader = torch.utils.data.DataLoader(
+    train_dataset,
+    batch_size=opt.batchSize,
+    shuffle=True,
+)
+val_dataloader = torch.utils.data.DataLoader(
+    val_dataset,
+    batch_size=opt.batchSize,
+    shuffle=False,
+)
 
 # specify the gpu id if using only 1 gpu
 if opt.ngpu == 1:
@@ -121,7 +146,7 @@ else:
 netG.apply(weights_init)
 if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
-print(netG)
+#print(netG)
 
 # Define the discriminator and initialize the weights
 if opt.dataset == 'imagenet':
@@ -131,7 +156,7 @@ else:
 netD.apply(weights_init)
 if opt.netD != '':
     netD.load_state_dict(torch.load(opt.netD))
-print(netD)
+#print(netD)
 
 # loss functions
 dis_criterion = nn.BCELoss()
@@ -140,7 +165,7 @@ aux_criterion = nn.NLLLoss()
 # tensor placeholders
 input = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
 noise = torch.FloatTensor(opt.batchSize, nz, 1, 1)
-eval_noise = torch.FloatTensor(opt.batchSize, nz, 1, 1).normal_(0, 1)
+#eval_noise = torch.FloatTensor(opt.batchSize, nz, 1, 1).normal_(0, 1)
 dis_label = torch.FloatTensor(opt.batchSize)
 aux_label = torch.LongTensor(opt.batchSize)
 real_label = 1
@@ -153,25 +178,26 @@ if opt.cuda:
     dis_criterion.cuda()
     aux_criterion.cuda()
     input, dis_label, aux_label = input.cuda(), dis_label.cuda(), aux_label.cuda()
-    noise, eval_noise = noise.cuda(), eval_noise.cuda()
+    #noise, eval_noise = noise.cuda(), eval_noise.cuda()
+    noise = noise.cuda()
 
 # define variables
 input = Variable(input)
 noise = Variable(noise)
-eval_noise = Variable(eval_noise)
+#eval_noise = Variable(eval_noise)
 dis_label = Variable(dis_label)
 aux_label = Variable(aux_label)
 encoder = BERTEncoder()
 # noise for evaluation
-eval_noise_ = np.random.normal(0, 1, (opt.batchSize, nz))
-eval_label = np.random.randint(0, num_classes, opt.batchSize)
-if opt.dataset == 'cifar10':
-            captions = [cifar_text_labels[per_label] for per_label in eval_label]
-            embedding = encoder(eval_label, captions)
-            embedding = embedding.detach().numpy()
-eval_noise_[np.arange(opt.batchSize), :opt.embed_size] = embedding[:, :opt.embed_size]
-eval_noise_ = (torch.from_numpy(eval_noise_))
-eval_noise.data.copy_(eval_noise_.view(opt.batchSize, nz, 1, 1))
+#eval_noise_ = np.random.normal(0, 1, (opt.batchSize, nz))
+#eval_label = np.random.randint(0, num_classes, opt.batchSize)
+#if opt.dataset == 'cifar10':
+#            captions = [cifar_text_labels[per_label] for per_label in eval_label]
+#            embedding = encoder(eval_label, captions)
+#            embedding = embedding.detach().numpy()
+#eval_noise_[np.arange(opt.batchSize), :opt.embed_size] = embedding[:, :opt.embed_size]
+#eval_noise_ = (torch.from_numpy(eval_noise_))
+#eval_noise.data.copy_(eval_noise_.view(opt.batchSize, nz, 1, 1))
 
 # setup optimizer
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
@@ -267,10 +293,11 @@ for epoch in range(opt.n_epochs):
         writer.add_scalar('train/loss_a', avg_loss_A, batches_done)
 
         if i % 100 == 0:
-            vutils.save_image(real_cpu, os.path.join(opt.output_dir, 'samples', 'real_samples_{}.png'.format(epoch)))
-            print('Label for eval = {}'.format(eval_label))
-            fake = netG(eval_noise)
-            vutils.save_image(fake.data, os.path.join(opt.output_dir, 'samples', 'fake_samples_{}.png'.format(epoch)))
+#            vutils.save_image(real_cpu, os.path.join(opt.output_dir, 'samples', 'real_samples_{}.png'.format(epoch)))
+#            print('Label for eval = {}'.format(eval_label))
+#            fake = netG(eval_noise)
+#            vutils.save_image(fake.data, os.path.join(opt.output_dir, 'samples', 'fake_samples_{}.png'.format(epoch)))
+            sample_image(netG, encoder, 10, i, val_dataloader, opt)
 
     # do checkpointing
     torch.save(netG.state_dict(), os.path.join(opt.output_dir, 'models', 'netG_epoch_{}.pt'.format(epoch)))
