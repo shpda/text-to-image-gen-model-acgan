@@ -38,6 +38,11 @@ class _netG(nn.Module):
             nn.ConvTranspose2d(64, 3, 8, 2, 0, bias=False),
             nn.Tanh(),
         )
+        # 128 * 128 to 32 * 32
+        self.maxpool = nn.Sequential(
+            nn.MaxPool2d(5, 4, 2),
+        )
+
 
     def forward(self, input):
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
@@ -53,11 +58,12 @@ class _netG(nn.Module):
             output = tconv5
         else:
             input = input.view(-1, self.nz)
+            fc1 = self.fc1(input)
             fc1 = fc1.view(-1, 768, 1, 1)
             tconv2 = self.tconv2(fc1)
             tconv3 = self.tconv3(tconv2)
             tconv4 = self.tconv4(tconv3)
             tconv5 = self.tconv5(tconv4)
             tconv5 = self.tconv6(tconv5)
-            output = tconv5
+            output = self.maxpool(tconv5)
         return output

@@ -64,7 +64,7 @@ def sample_image(netG, encoder, n_row, batches_done, dataloader, opt):
 
     for i in range(n_row ** 2):
         grid[i].imshow(gen_imgs[i].transpose([1, 2, 0]))
-        grid[i].set_title(captions[i])
+        grid[i].set_title(captions[i], fontsize=6)
         grid[i].tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=True)
 
     save_file = os.path.join(target_dir, "{:013d}.png".format(batches_done))

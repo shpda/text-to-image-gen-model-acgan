@@ -78,12 +78,14 @@ train_dataloader = torch.utils.data.DataLoader(
     train_dataset,
     batch_size=opt.batchSize,
     shuffle=True,
+    num_workers=int(opt.workers),
 )
 val_dataloader = torch.utils.data.DataLoader(
     val_dataset,
     #batch_size=opt.batchSize,
     batch_size=100,
     shuffle=False,
+    num_workers=int(opt.workers),
 )
 
 # specify the gpu id if using only 1 gpu
@@ -105,17 +107,18 @@ if torch.cuda.is_available() and not opt.cuda:
 
 # datase t
 if opt.dataset == 'imagenet':
-    # folder dataset
-    dataset = ImageFolder(
-        root=opt.dataroot,
-        transform=transforms.Compose([
-            transforms.Scale(opt.imageSize),
-            transforms.CenterCrop(opt.imageSize),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ]),
-        classes_idx=(10, 20)
-    )
+    print("WARNING: using new dataset")
+#    # folder dataset
+#    dataset = ImageFolder(
+#        root=opt.dataroot,
+#        transform=transforms.Compose([
+#            transforms.Scale(opt.imageSize),
+#            transforms.CenterCrop(opt.imageSize),
+#            transforms.ToTensor(),
+#            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+#        ]),
+#        classes_idx=(10, 20)
+#    )
 elif opt.dataset == 'cifar10':
     dataset = dset.CIFAR10(
         root=opt.dataroot, download=True,
@@ -127,9 +130,10 @@ elif opt.dataset == 'cifar10':
 else:
     raise NotImplementedError("No such dataset {}".format(opt.dataset))
 
-assert dataset
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
-                                         shuffle=True, num_workers=int(opt.workers))
+#assert dataset
+#dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
+#                                         shuffle=True, num_workers=int(opt.workers))
+dataloader = train_dataloader
 
 # some hyper parameters
 ngpu = int(opt.ngpu)
@@ -208,7 +212,8 @@ avg_loss_D = 0.0
 avg_loss_G = 0.0
 avg_loss_A = 0.0
 for epoch in range(opt.n_epochs):
-    sample_image(netG, encoder, 10, epoch, val_dataloader, opt)
+    if opt.dataset == 'cifar10':
+        sample_image(netG, encoder, 10, epoch, val_dataloader, opt)
 
     for i, data in enumerate(dataloader, 0):
         ############################
@@ -216,7 +221,7 @@ for epoch in range(opt.n_epochs):
         ###########################
         # train with real
         netD.zero_grad()
-        real_cpu, label = data
+        real_cpu, label, captions = data
         batch_size = real_cpu.size(0)
         if opt.cuda:
             real_cpu = real_cpu.cuda()
@@ -243,6 +248,10 @@ for epoch in range(opt.n_epochs):
             captions = [cifar_text_labels[per_label] for per_label in label]
             embedding = encoder(label, captions)
             embedding = embedding.detach().numpy()
+        elif opt.dataset == 'imagenet':
+            embedding = encoder(label, captions)
+            embedding = embedding.detach().numpy()
+
         noise_ = np.random.normal(0, 1, (batch_size, nz))
         
         noise_[np.arange(batch_size), :opt.embed_size] = embedding[:, :opt.embed_size]
@@ -295,11 +304,12 @@ for epoch in range(opt.n_epochs):
         writer.add_scalar('train/loss_g', avg_loss_G, batches_done)
         writer.add_scalar('train/loss_a', avg_loss_A, batches_done)
 
-#        if i % 100 == 0:
+        if opt.dataset == 'imagenet' and i % 100 == 0:
 #            vutils.save_image(real_cpu, os.path.join(opt.output_dir, 'samples', 'real_samples_{}.png'.format(epoch)))
 #            print('Label for eval = {}'.format(eval_label))
 #            fake = netG(eval_noise)
 #            vutils.save_image(fake.data, os.path.join(opt.output_dir, 'samples', 'fake_samples_{}.png'.format(epoch)))
+            sample_image(netG, encoder, 10, batches_done, val_dataloader, opt)
 
     # do checkpointing
     torch.save(netG.state_dict(), os.path.join(opt.output_dir, 'models', 'netG_epoch_{}.pt'.format(epoch)))

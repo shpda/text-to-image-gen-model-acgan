@@ -14,3 +14,6 @@ Start GCloud:
 
 gcloud compute --project "curious-context-259106" ssh --zone "us-west1-b" "pytorch-1-vm"
 
+Download file:
+
+gcloud compute scp ooo@pytorch-1-vm:~/text-to-image-gen-model-acgan/output/samples/0000000000008.png .
