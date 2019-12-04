@@ -81,7 +81,8 @@ train_dataloader = torch.utils.data.DataLoader(
 )
 val_dataloader = torch.utils.data.DataLoader(
     val_dataset,
-    batch_size=opt.batchSize,
+    #batch_size=opt.batchSize,
+    batch_size=100,
     shuffle=False,
 )
 
@@ -207,6 +208,8 @@ avg_loss_D = 0.0
 avg_loss_G = 0.0
 avg_loss_A = 0.0
 for epoch in range(opt.n_epochs):
+    sample_image(netG, encoder, 10, epoch, val_dataloader, opt)
+
     for i, data in enumerate(dataloader, 0):
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
@@ -292,12 +295,11 @@ for epoch in range(opt.n_epochs):
         writer.add_scalar('train/loss_g', avg_loss_G, batches_done)
         writer.add_scalar('train/loss_a', avg_loss_A, batches_done)
 
-        if i % 100 == 0:
+#        if i % 100 == 0:
 #            vutils.save_image(real_cpu, os.path.join(opt.output_dir, 'samples', 'real_samples_{}.png'.format(epoch)))
 #            print('Label for eval = {}'.format(eval_label))
 #            fake = netG(eval_noise)
 #            vutils.save_image(fake.data, os.path.join(opt.output_dir, 'samples', 'fake_samples_{}.png'.format(epoch)))
-            sample_image(netG, encoder, 10, i, val_dataloader, opt)
 
     # do checkpointing
     torch.save(netG.state_dict(), os.path.join(opt.output_dir, 'models', 'netG_epoch_{}.pt'.format(epoch)))

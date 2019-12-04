@@ -27,6 +27,8 @@ def sample_image(netG, encoder, n_row, batches_done, dataloader, opt):
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
 
+    batch_size = 100
+
     device = "cpu"
     if opt.cuda:
         device = "cuda"
@@ -38,16 +40,16 @@ def sample_image(netG, encoder, n_row, batches_done, dataloader, opt):
     while not done:
         for (_, labels_batch, captions_batch) in dataloader:
 
-            eval_noise_ = np.random.normal(0, 1, (opt.batchSize, opt.nz))
+            eval_noise_ = np.random.normal(0, 1, (batch_size, opt.nz))
 
             captions += captions_batch
             conditional_embeddings = encoder(labels_batch.to(device), captions_batch)
 
             embeddings = conditional_embeddings.detach().numpy()
-            eval_noise_[np.arange(opt.batchSize), :opt.embed_size] = embeddings[:, :opt.embed_size]
+            eval_noise_[np.arange(batch_size), :opt.embed_size] = embeddings[:, :opt.embed_size]
             eval_noise_ = (torch.from_numpy(eval_noise_))
 
-            imgs = netG(eval_noise_.view(opt.batchSize, opt.nz, 1, 1).float().to(device)).cpu()
+            imgs = netG(eval_noise_.view(batch_size, opt.nz, 1, 1).float().to(device)).cpu()
             gen_imgs.append(imgs)
 
             if len(captions) > n_row ** 2:
