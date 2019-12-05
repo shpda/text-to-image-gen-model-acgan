@@ -3,6 +3,7 @@ import numpy as np
 from mpl_toolkits.axes_grid1 import ImageGrid
 import os
 import torch
+import torchvision
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
@@ -72,4 +73,43 @@ def sample_image(netG, encoder, n_row, batches_done, dataloader, opt):
     print("saved  {}".format(save_file))
     plt.close()
 
+
+def sample_final_image(netG, encoder, target_n_samples, batch_size, dataloader, opt):
+    """Saves a set of generated imagenet pictures as individual files"""
+    target_dir = os.path.join(opt.output_dir, "samples_final/")
+    if not os.path.isdir(target_dir):
+        os.makedirs(target_dir)
+
+    device = "cpu"
+    if opt.cuda:
+        device = "cuda"
+
+    gen_imgs = []
+
+    done = False
+    n_samples = 0
+    while not done:
+        for (_, labels_batch, captions_batch) in dataloader:
+
+            eval_noise_ = np.random.normal(0, 1, (batch_size, opt.nz))
+
+            conditional_embeddings = encoder(labels_batch.to(device), captions_batch)
+
+            embeddings = conditional_embeddings.detach().numpy()
+            eval_noise_[np.arange(batch_size), :opt.embed_size] = embeddings[:, :opt.embed_size]
+            eval_noise_ = (torch.from_numpy(eval_noise_))
+
+            imgs = netG(eval_noise_.view(batch_size, opt.nz, 1, 1).float().to(device)).cpu()
+            gen_imgs.append(imgs)
+
+            n_samples += batch_size
+            if n_samples >= target_n_samples:
+                done = True
+                break
+
+    gen_imgs = torch.cat(gen_imgs)
+    gen_imgs = torch.clamp(gen_imgs, 0, 1)
+
+    for idx, img in enumerate(gen_imgs):
+        torchvision.utils.save_image(img, target_dir+'img'+str(idx)+'.png')
 

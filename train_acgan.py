@@ -16,7 +16,7 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
-from utils import weights_init, compute_acc, sample_image
+from utils import weights_init, compute_acc, sample_image, sample_final_image
 from models.generator_imagenet import _netG
 from models.discriminator_imagenet import _netD
 from models.generator_cifar import _netG_CIFAR10
@@ -52,6 +52,7 @@ parser.add_argument('--embed_size', default=100, type=int, help='embed size')
 parser.add_argument('--num_classes', type=int, default=10, help='Number of classes for AC-GAN')
 parser.add_argument('--gpu_id', type=int, default=0, help='The ID of the specified GPU')
 parser.add_argument('--debug', type=bool, default=False, help='Debugging')
+parser.add_argument('--sample', type=bool, default=False, help='Sampling images for Inception Score computation')
 
 opt = parser.parse_args()
 print(opt)
@@ -153,6 +154,22 @@ if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
 #print(netG)
 
+encoder = BERTEncoder()
+
+if opt.sample:
+    print('sampling images for IS computation ...')
+
+    sample_batch_size = 1
+    sample_dataloader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=sample_batch_size,
+        shuffle=False,
+        num_workers=int(opt.workers),
+    )
+
+    sample_final_image(netG, encoder, 1, sample_batch_size, sample_dataloader, opt)
+    exit(0)
+
 # Define the discriminator and initialize the weights
 if opt.dataset == 'imagenet':
     netD = _netD(ngpu, num_classes)
@@ -192,7 +209,6 @@ noise = Variable(noise)
 #eval_noise = Variable(eval_noise)
 dis_label = Variable(dis_label)
 aux_label = Variable(aux_label)
-encoder = BERTEncoder()
 # noise for evaluation
 #eval_noise_ = np.random.normal(0, 1, (opt.batchSize, nz))
 #eval_label = np.random.randint(0, num_classes, opt.batchSize)
