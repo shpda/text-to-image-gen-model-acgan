@@ -89,6 +89,7 @@ def sample_image2(netG, encoder, target_n_samples, batch_size, dataloader, opt):
 
     gen_imgs = []
     ori_imgs = []
+    n_samples = 0
     done = False
     while not done:
         for (ori_img_batch, labels_batch, captions_batch) in dataloader:
@@ -117,10 +118,10 @@ def sample_image2(netG, encoder, target_n_samples, batch_size, dataloader, opt):
     gen_imgs = torch.clamp(gen_imgs, 0, 1)
 
     for idx, img in enumerate(ori_imgs):
-        torchvision.utils.save_image(img, target_dir+'ori_img'+str(idx)+'.png')
+        torchvision.utils.save_image(img, target_ori_dir+'ori_img'+str(idx)+'.png')
 
     for idx, img in enumerate(gen_imgs):
-        torchvision.utils.save_image(img, target_dir+'gen_img'+str(idx)+'.png')
+        torchvision.utils.save_image(img, target_gen_dir+'gen_img'+str(idx)+'.png')
 
 def sample_final_image(netG, encoder, target_n_samples, batch_size, dataloader, opt):
     """Saves a set of generated imagenet pictures as individual files"""

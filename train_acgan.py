@@ -16,7 +16,7 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
-from utils import weights_init, compute_acc, sample_image, sample_final_image
+from utils import weights_init, compute_acc, sample_image, sample_image2, sample_final_image
 from models.generator_imagenet import _netG
 from models.discriminator_imagenet import _netD
 from models.generator_cifar import _netG_CIFAR10
@@ -52,7 +52,7 @@ parser.add_argument('--embed_size', default=100, type=int, help='embed size')
 parser.add_argument('--num_classes', type=int, default=10, help='Number of classes for AC-GAN')
 parser.add_argument('--gpu_id', type=int, default=0, help='The ID of the specified GPU')
 parser.add_argument('--debug', type=bool, default=False, help='Debugging')
-parser.add_argument('--sample', help='none | shuffle | noshuffle', default='none', help='Sampling images for Inception Score or FID computation')
+parser.add_argument('--sample', help='none | shuffle | noshuffle, sampling images for Inception Score or FID computation', default='none')
 
 opt = parser.parse_args()
 print(opt)
@@ -186,10 +186,11 @@ elif opt.sample == 'shuffle':
         num_workers=int(opt.workers),
     )
 
-    sample_image(netG, encoder, 100, sample_batch_size, sample_dataloader, opt)
+    sample_image2(netG, encoder, 100, sample_batch_size, sample_dataloader, opt)
     exit(0)
 elif opt.sample == 'none':
     # no-op
+    print('do not sample')
 else:
     print('unknown sampling option')
     exit(0)
