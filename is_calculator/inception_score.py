@@ -9,6 +9,8 @@ from torchvision.models.inception import inception_v3
 import numpy as np
 from scipy.stats import entropy
 
+import pathlib
+
 #def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
 def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
     """Computes the inception score of the generated images imgs
@@ -90,6 +92,8 @@ if __name__ == '__main__':
 #    )
 #
 #    IgnoreLabelDataset(cifar)
+    path = pathlib.Path(path)
+    files = list(path.glob('*.png'))
 
     print ("Calculating Inception Score...")
 #    print (inception_score(IgnoreLabelDataset(cifar), cuda=True, batch_size=32, resize=True, splits=10))
