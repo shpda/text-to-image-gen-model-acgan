@@ -92,8 +92,41 @@ if __name__ == '__main__':
 #    )
 #
 #    IgnoreLabelDataset(cifar)
+
     path = pathlib.Path(path)
     files = list(path.glob('*.png'))
+
+    if len(files) % batch_size != 0:
+        print(('Warning: number of images is not a multiple of the '
+               'batch size. Some samples are going to be ignored.'))
+    if batch_size > len(files):
+        print(('Warning: batch size is bigger than the data size. '
+               'Setting batch size to data size'))
+        batch_size = len(files)
+
+    n_batches = len(files) // batch_size
+    n_used_imgs = n_batches * batch_size
+
+    pred_arr = np.empty((n_used_imgs, dims))
+
+    for i in tqdm(range(n_batches)):
+        if verbose:
+            print('\rPropagating batch %d/%d' % (i + 1, n_batches),
+                  end='', flush=True)
+        start = i * batch_size
+        end = start + batch_size
+
+        images = np.array([imread(str(f)).astype(np.float32)
+                           for f in files[start:end]])
+
+        # Reshape to (n_images, 3, height, width)
+        images = images.transpose((0, 3, 1, 2))
+        images /= 255
+
+        batch = torch.from_numpy(images).type(torch.FloatTensor)
+        if cuda:
+            batch = batch.cuda()
+
 
     print ("Calculating Inception Score...")
 #    print (inception_score(IgnoreLabelDataset(cifar), cuda=True, batch_size=32, resize=True, splits=10))
