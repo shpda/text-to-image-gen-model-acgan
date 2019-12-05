@@ -52,7 +52,7 @@ parser.add_argument('--embed_size', default=100, type=int, help='embed size')
 parser.add_argument('--num_classes', type=int, default=10, help='Number of classes for AC-GAN')
 parser.add_argument('--gpu_id', type=int, default=0, help='The ID of the specified GPU')
 parser.add_argument('--debug', type=bool, default=False, help='Debugging')
-parser.add_argument('--sample', type=bool, default=False, help='Sampling images for Inception Score computation')
+parser.add_argument('--sample', help='none | shuffle | noshuffle', default='none', help='Sampling images for Inception Score or FID computation')
 
 opt = parser.parse_args()
 print(opt)
@@ -156,8 +156,8 @@ if opt.netG != '':
 
 encoder = BERTEncoder()
 
-if opt.sample:
-    print('sampling images for IS computation ...')
+if opt.sample == 'noshuffle':
+    print('sampling images based on fixed sequence of categories ...')
 
     sample_batch_size = 10
     sample_dataloader = torch.utils.data.DataLoader(
@@ -168,6 +168,30 @@ if opt.sample:
     )
 
     sample_final_image(netG, encoder, 100, sample_batch_size, sample_dataloader, opt)
+    exit(0)
+elif opt.sample == 'shuffle':
+    print('sampling images based on shuffled testsets ...')
+
+    eval_dataset = None
+    if opt.dataset == 'imagenet':
+        eval_dataset = val_dataset
+    elif opt.dataset == 'cifar10':
+        eval_dataset = train_dataset
+
+    sample_batch_size = 10
+    sample_dataloader = torch.utils.data.DataLoader(
+        eval_dataset,
+        batch_size=sample_batch_size,
+        shuffle=True,
+        num_workers=int(opt.workers),
+    )
+
+    sample_image(netG, encoder, 100, sample_batch_size, sample_dataloader, opt)
+    exit(0)
+elif opt.sample == 'none':
+    # no-op
+else:
+    print('unknown sampling option')
     exit(0)
 
 # Define the discriminator and initialize the weights

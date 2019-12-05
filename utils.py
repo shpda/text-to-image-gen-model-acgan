@@ -74,6 +74,54 @@ def sample_image(netG, encoder, n_row, batches_done, dataloader, opt):
     plt.close()
 
 
+def sample_image2(netG, encoder, target_n_samples, batch_size, dataloader, opt):
+    """Saves a grid of generated imagenet pictures with captions"""
+    target_ori_dir = os.path.join(opt.output_dir, "samples_ori/")
+    target_gen_dir = os.path.join(opt.output_dir, "samples_gen/")
+    if not os.path.isdir(target_ori_dir):
+        os.makedirs(target_ori_dir)
+    if not os.path.isdir(target_gen_dir):
+        os.makedirs(target_gen_dir)
+
+    device = "cpu"
+    if opt.cuda:
+        device = "cuda"
+
+    gen_imgs = []
+    ori_imgs = []
+    done = False
+    while not done:
+        for (ori_img_batch, labels_batch, captions_batch) in dataloader:
+
+            eval_noise_ = np.random.normal(0, 1, (batch_size, opt.nz))
+
+            conditional_embeddings = encoder(labels_batch.to(device), captions_batch)
+
+            embeddings = conditional_embeddings.detach().numpy()
+            eval_noise_[np.arange(batch_size), :opt.embed_size] = embeddings[:, :opt.embed_size]
+            eval_noise_ = (torch.from_numpy(eval_noise_))
+
+            gen_img_batch = netG(eval_noise_.view(batch_size, opt.nz, 1, 1).float().to(device)).cpu()
+            ori_imgs.append(ori_img_batch)
+            gen_imgs.append(gen_img_batch)
+
+            n_samples += batch_size
+            if n_samples >= target_n_samples:
+                done = True
+                break
+
+    ori_imgs = torch.cat(ori_imgs)
+    ori_imgs = torch.clamp(ori_imgs, 0, 1)
+
+    gen_imgs = torch.cat(gen_imgs)
+    gen_imgs = torch.clamp(gen_imgs, 0, 1)
+
+    for idx, img in enumerate(ori_imgs):
+        torchvision.utils.save_image(img, target_dir+'ori_img'+str(idx)+'.png')
+
+    for idx, img in enumerate(gen_imgs):
+        torchvision.utils.save_image(img, target_dir+'gen_img'+str(idx)+'.png')
+
 def sample_final_image(netG, encoder, target_n_samples, batch_size, dataloader, opt):
     """Saves a set of generated imagenet pictures as individual files"""
     target_dir = os.path.join(opt.output_dir, "samples_final/")
