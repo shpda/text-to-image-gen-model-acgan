@@ -4,22 +4,24 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 import torch.utils.data
 
+import torchvision
 from torchvision.models.inception import inception_v3
 
 import numpy as np
 from scipy.stats import entropy
 
 import pathlib
+import torchvision.transforms as transforms
 
 #def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
-def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
+def inception_score(data_loader, cuda=True, batch_size=32, resize=False, splits=1):
     """Computes the inception score of the generated images imgs
     imgs -- Torch dataset of (3xHxW) numpy images normalized in the range [-1, 1]
     cuda -- whether or not to run on GPU
     batch_size -- batch size for feeding into Inception v3
     splits -- number of splits
     """
-    N = len(imgs)
+    N = len(data_loader) * batch_size
 
     assert batch_size > 0
     assert N > batch_size
@@ -31,9 +33,6 @@ def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
         if torch.cuda.is_available():
             print("WARNING: You have a CUDA device, so you should probably set cuda=True")
         dtype = torch.FloatTensor
-
-    # Set up dataloader
-    dataloader = torch.utils.data.DataLoader(imgs, batch_size=batch_size)
 
     # Load inception model
     inception_model = inception_v3(pretrained=True, transform_input=False).type(dtype)
@@ -48,7 +47,7 @@ def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
     # Get predictions
     preds = np.zeros((N, 1000))
 
-    for i, batch in enumerate(dataloader, 0):
+    for i, (batch, _) in enumerate(data_loader, 0):
         batch = batch.type(dtype)
         batchv = Variable(batch)
         batch_size_i = batch.size()[0]
@@ -69,65 +68,29 @@ def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
 
     return np.mean(split_scores), np.std(split_scores)
 
+def load_dataset(batch_size):
+    data_path = '~/tmpdev0/text-to-image-gen-model-acgan/output/samples_final'
+    eval_dataset = torchvision.datasets.ImageFolder(
+        root = data_path,
+        transform = transforms.Compose([
+            transforms.Scale(32),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+    )
+    eval_loader = torch.utils.data.DataLoader(
+            eval_dataset,
+            batch_size = batch_size,
+            num_workers = 1,
+            shuffle=False
+    )
+    return eval_loader
+
 if __name__ == '__main__':
-#    class IgnoreLabelDataset(torch.utils.data.Dataset):
-#        def __init__(self, orig):
-#            self.orig = orig
-#
-#        def __getitem__(self, index):
-#            return self.orig[index][0]
-#
-#        def __len__(self):
-#            return len(self.orig)
-#
-#    import torchvision.datasets as dset
-#    import torchvision.transforms as transforms
-#
-#    cifar = dset.CIFAR10(root='datasets/', download=True,
-#                             transform=transforms.Compose([
-#                                 transforms.Scale(32),
-#                                 transforms.ToTensor(),
-#                                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-#                             ])
-#    )
-#
-#    IgnoreLabelDataset(cifar)
 
-    path = pathlib.Path(path)
-    files = list(path.glob('*.png'))
-
-    if len(files) % batch_size != 0:
-        print(('Warning: number of images is not a multiple of the '
-               'batch size. Some samples are going to be ignored.'))
-    if batch_size > len(files):
-        print(('Warning: batch size is bigger than the data size. '
-               'Setting batch size to data size'))
-        batch_size = len(files)
-
-    n_batches = len(files) // batch_size
-    n_used_imgs = n_batches * batch_size
-
-    pred_arr = np.empty((n_used_imgs, dims))
-
-    for i in tqdm(range(n_batches)):
-        if verbose:
-            print('\rPropagating batch %d/%d' % (i + 1, n_batches),
-                  end='', flush=True)
-        start = i * batch_size
-        end = start + batch_size
-
-        images = np.array([imread(str(f)).astype(np.float32)
-                           for f in files[start:end]])
-
-        # Reshape to (n_images, 3, height, width)
-        images = images.transpose((0, 3, 1, 2))
-        images /= 255
-
-        batch = torch.from_numpy(images).type(torch.FloatTensor)
-        if cuda:
-            batch = batch.cuda()
-
+    batch_size = 10
+    eval_loader = load_dataset(batch_size)
 
     print ("Calculating Inception Score...")
-#    print (inception_score(IgnoreLabelDataset(cifar), cuda=True, batch_size=32, resize=True, splits=10))
-    print (inception_score(cuda=True, batch_size=32, resize=True, splits=10))
+    print (inception_score(eval_loader, cuda=True, batch_size=batch_size, resize=True, splits=10))
+

@@ -159,7 +159,7 @@ encoder = BERTEncoder()
 if opt.sample:
     print('sampling images for IS computation ...')
 
-    sample_batch_size = 1
+    sample_batch_size = 10
     sample_dataloader = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=sample_batch_size,
@@ -167,7 +167,7 @@ if opt.sample:
         num_workers=int(opt.workers),
     )
 
-    sample_final_image(netG, encoder, 1, sample_batch_size, sample_dataloader, opt)
+    sample_final_image(netG, encoder, 100, sample_batch_size, sample_dataloader, opt)
     exit(0)
 
 # Define the discriminator and initialize the weights
