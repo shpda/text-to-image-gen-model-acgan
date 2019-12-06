@@ -75,7 +75,31 @@ if opt.dataset == "imagenet":
     val_dataset = Imagenet32Dataset(train=0, max_size=1 if opt.debug else -1)
 elif opt.dataset == "cifar10":
     train_dataset = CIFAR10Dataset(train=True, max_size=1 if opt.debug else -1)
+#    train_dataset = dset.CIFAR10(
+#        root=opt.dataroot, download=True,
+#        transform=transforms.Compose([
+#            transforms.Scale(opt.imageSize),
+#            transforms.ToTensor(),
+#            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+#        ]))
     val_dataset = CIFAR10Dataset(train=0, max_size=1 if opt.debug else -1)
+elif opt.dataset == "coco":
+    train_dataset = dset.CocoCaptions(
+        root=opt.dataroot, annFile=opt.annFile,
+        transform=transforms.Compose([
+            transforms.Scale(opt.imageSize),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]))
+    val_dataset = dset.CocoCaptions(
+        root=opt.dataroot, annFile=opt.annFile,
+        transform=transforms.Compose([
+            transforms.Scale(opt.imageSize),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]))
+else:
+    raise NotImplementedError("No such dataset {}".format(opt.dataset))
 
 print("creating dataloaders")
 train_dataloader = torch.utils.data.DataLoader(
@@ -109,38 +133,38 @@ cudnn.benchmark = True
 if torch.cuda.is_available() and not opt.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
 
-# datase t
-if opt.dataset == 'imagenet':
-    print("WARNING: using new dataset")
-#    # folder dataset
-#    dataset = ImageFolder(
-#        root=opt.dataroot,
+## datase t
+#if opt.dataset == 'imagenet':
+#    print("WARNING: using new dataset")
+##    # folder dataset
+##    dataset = ImageFolder(
+##        root=opt.dataroot,
+##        transform=transforms.Compose([
+##            transforms.Scale(opt.imageSize),
+##            transforms.CenterCrop(opt.imageSize),
+##            transforms.ToTensor(),
+##            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+##        ]),
+##        classes_idx=(10, 20)
+##    )
+#elif opt.dataset == 'cifar10':
+#    dataset = dset.CIFAR10(
+#        root=opt.dataroot, download=True,
 #        transform=transforms.Compose([
 #            transforms.Scale(opt.imageSize),
-#            transforms.CenterCrop(opt.imageSize),
 #            transforms.ToTensor(),
 #            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-#        ]),
-#        classes_idx=(10, 20)
-#    )
-elif opt.dataset == 'cifar10':
-    dataset = dset.CIFAR10(
-        root=opt.dataroot, download=True,
-        transform=transforms.Compose([
-            transforms.Scale(opt.imageSize),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ]))
-elif opt.dataset == 'coco':
-    dataset = dset.CocoCaptions(
-        root=opt.dataroot, annFile=opt.annFile, download=True,
-        transform=transforms.Compose([
-            transforms.Scale(opt.imageSize),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ]))
-else:
-    raise NotImplementedError("No such dataset {}".format(opt.dataset))
+#        ]))
+#elif opt.dataset == 'coco':
+#    dataset = dset.CocoCaptions(
+#        root=opt.dataroot, annFile=opt.annFile, download=True,
+#        transform=transforms.Compose([
+#            transforms.Scale(opt.imageSize),
+#            transforms.ToTensor(),
+#            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+#        ]))
+#else:
+#    raise NotImplementedError("No such dataset {}".format(opt.dataset))
 
 #assert dataset
 #dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
