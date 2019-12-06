@@ -33,8 +33,9 @@ from data import CIFAR10Dataset, Imagenet32Dataset
 cifar_text_labels = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', required=True, help='cifar10 | imagenet')
+parser.add_argument('--dataset', required=True, help='cifar10 | imagenet | coco')
 parser.add_argument('--dataroot', required=True, help='path to dataset')
+parser.add_argument('--annFile', default="annfile", help='path to json annotation file')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
 parser.add_argument('--batchSize', type=int, default=1, help='input batch size')
 parser.add_argument('--imageSize', type=int, default=128, help='the height / width of the input image to network')
@@ -72,8 +73,7 @@ print("loading dataset")
 if opt.dataset == "imagenet":
     train_dataset = Imagenet32Dataset(train=True, max_size=1 if opt.debug else -1)
     val_dataset = Imagenet32Dataset(train=0, max_size=1 if opt.debug else -1)
-else:
-    assert opt.dataset == "cifar10"
+elif opt.dataset == "cifar10":
     train_dataset = CIFAR10Dataset(train=True, max_size=1 if opt.debug else -1)
     val_dataset = CIFAR10Dataset(train=0, max_size=1 if opt.debug else -1)
 
@@ -126,6 +126,14 @@ if opt.dataset == 'imagenet':
 elif opt.dataset == 'cifar10':
     dataset = dset.CIFAR10(
         root=opt.dataroot, download=True,
+        transform=transforms.Compose([
+            transforms.Scale(opt.imageSize),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]))
+elif opt.dataset == 'coco':
+    dataset = dset.CocoCaptions(
+        root=opt.dataroot, annFile=opt.annFile, download=True,
         transform=transforms.Compose([
             transforms.Scale(opt.imageSize),
             transforms.ToTensor(),
