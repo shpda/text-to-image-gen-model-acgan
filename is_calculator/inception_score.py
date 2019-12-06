@@ -69,7 +69,8 @@ def inception_score(data_loader, cuda=True, batch_size=32, resize=False, splits=
     return np.mean(split_scores), np.std(split_scores)
 
 def load_dataset(batch_size):
-    data_path = '~/tmpdev0/text-to-image-gen-model-acgan/output/samples_final'
+    #data_path = '~/tmpdev0/text-to-image-gen-model-acgan/output/samples_final'
+    data_path = '/home/ooo/Documents/CS236/text-to-image-gen-model-acgan/output/samples_gen'
     eval_dataset = torchvision.datasets.ImageFolder(
         root = data_path,
         transform = transforms.Compose([
@@ -88,7 +89,7 @@ def load_dataset(batch_size):
 
 if __name__ == '__main__':
 
-    batch_size = 10
+    batch_size = 50
     eval_loader = load_dataset(batch_size)
 
     print ("Calculating Inception Score...")

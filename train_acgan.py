@@ -189,12 +189,16 @@ if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
 #print(netG)
 
+# if using cuda
+if opt.cuda:
+    netG.cuda()
+
 encoder = BERTEncoder()
 
 if opt.sample == 'noshuffle':
     print('sampling images based on fixed sequence of categories ...')
 
-    sample_batch_size = 10
+    sample_batch_size = 50
     sample_dataloader = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=sample_batch_size,
@@ -202,7 +206,8 @@ if opt.sample == 'noshuffle':
         num_workers=int(opt.workers),
     )
 
-    sample_final_image(netG, encoder, 100, sample_batch_size, sample_dataloader, opt)
+    sample_image(netG, encoder, sample_batch_size, 5, 0, sample_dataloader, opt)
+    #sample_final_image(netG, encoder, 100, sample_batch_size, sample_dataloader, opt)
     exit(0)
 elif opt.sample == 'shuffle':
     print('sampling images based on shuffled testsets ...')
@@ -213,7 +218,7 @@ elif opt.sample == 'shuffle':
     elif opt.dataset == 'cifar10':
         eval_dataset = train_dataset
 
-    sample_batch_size = 10
+    sample_batch_size = 100
     sample_dataloader = torch.utils.data.DataLoader(
         eval_dataset,
         batch_size=sample_batch_size,
@@ -221,7 +226,7 @@ elif opt.sample == 'shuffle':
         num_workers=int(opt.workers),
     )
 
-    sample_image2(netG, encoder, 100, sample_batch_size, sample_dataloader, opt)
+    sample_image2(netG, encoder, 2000, sample_batch_size, sample_dataloader, opt)
     exit(0)
 elif opt.sample == 'none':
     # no-op
@@ -263,7 +268,6 @@ fake_label = 0
 # if using cuda
 if opt.cuda:
     netD.cuda()
-    netG.cuda()
     dis_criterion.cuda()
     aux_criterion.cuda()
     input, dis_label, aux_label = input.cuda(), dis_label.cuda(), aux_label.cuda()

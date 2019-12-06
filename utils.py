@@ -22,13 +22,11 @@ def compute_acc(preds, labels):
     acc = float(correct) / float(len(labels.data)) * 100.0
     return acc
 
-def sample_image(netG, encoder, n_row, batches_done, dataloader, opt):
+def sample_image(netG, encoder, batch_size, n_row, batches_done, dataloader, opt):
     """Saves a grid of generated imagenet pictures with captions"""
     target_dir = os.path.join(opt.output_dir, "samples/")
     if not os.path.isdir(target_dir):
         os.makedirs(target_dir)
-
-    batch_size = 100
 
     device = "cpu"
     if opt.cuda:
@@ -66,7 +64,7 @@ def sample_image(netG, encoder, n_row, batches_done, dataloader, opt):
     for i in range(n_row ** 2):
         grid[i].imshow(gen_imgs[i].transpose([1, 2, 0]))
         grid[i].set_title(captions[i], fontsize=6)
-        grid[i].tick_params(axis='both', which='both', bottom=False, top=False, labelbottom=True)
+        grid[i].tick_params(axis='both', which='both', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False)
 
     save_file = os.path.join(target_dir, "{:013d}.png".format(batches_done))
     plt.savefig(save_file)
@@ -76,8 +74,8 @@ def sample_image(netG, encoder, n_row, batches_done, dataloader, opt):
 
 def sample_image2(netG, encoder, target_n_samples, batch_size, dataloader, opt):
     """Saves a grid of generated imagenet pictures with captions"""
-    target_ori_dir = os.path.join(opt.output_dir, "samples_ori/")
-    target_gen_dir = os.path.join(opt.output_dir, "samples_gen/")
+    target_ori_dir = os.path.join(opt.output_dir, "samples_ori/image/")
+    target_gen_dir = os.path.join(opt.output_dir, "samples_gen/image/")
     if not os.path.isdir(target_ori_dir):
         os.makedirs(target_ori_dir)
     if not os.path.isdir(target_gen_dir):
@@ -132,6 +130,7 @@ def sample_final_image(netG, encoder, target_n_samples, batch_size, dataloader, 
     device = "cpu"
     if opt.cuda:
         device = "cuda"
+    print("INFO: device is: " + device)
 
     gen_imgs = []
 

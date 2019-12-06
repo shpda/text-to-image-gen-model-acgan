@@ -17,3 +17,13 @@ gcloud compute --project "curious-context-259106" ssh --zone "us-west1-b" "pytor
 Download file:
 
 gcloud compute scp ooo@pytorch-1-vm:~/text-to-image-gen-model-acgan/output/samples/0000000000008.png .
+
+Sample ImageNet:
+
+python3 train_acgan.py --output_dir=output --n_epochs=500 --batchSize=100 --cuda --dataset=imagenet --imageSize=32 --dataroot=datasets --gpu=0 --sample=noshuffle --netG=output/models/netG_epoch_24.pt
+
+
+Calculate FID:
+
+python3 fid_score.py -c 0 ../output/samples_gen/image ../output/samples_ori/image
+
