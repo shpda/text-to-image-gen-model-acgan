@@ -19,8 +19,10 @@ from torch.autograd import Variable
 from utils import weights_init, compute_acc, sample_image, sample_image2, sample_final_image
 from models.generator_imagenet import _netG
 from models.discriminator_imagenet import _netD
+from models.discriminator_imagenet import _netD_SN
 from models.generator_cifar import _netG_CIFAR10
 from models.discriminator_cifar import _netD_CIFAR10
+from models.discriminator_cifar import _netD_CIFAR10_SN
 from folder import ImageFolder
 from embedders import BERTEncoder
 
@@ -53,6 +55,7 @@ parser.add_argument('--num_classes', type=int, default=10, help='Number of class
 parser.add_argument('--gpu_id', type=int, default=0, help='The ID of the specified GPU')
 parser.add_argument('--debug', type=bool, default=False, help='Debugging')
 parser.add_argument('--sample', help='none | shuffle | noshuffle, sampling images for Inception Score or FID computation', default='none')
+parser.add_argument('--sn', type=bool, default=False, help='apply Spectral Norm')
 
 opt = parser.parse_args()
 print(opt)
@@ -190,16 +193,23 @@ elif opt.sample == 'shuffle':
     exit(0)
 elif opt.sample == 'none':
     # no-op
-    print('do not sample')
+    print('INFO: do not sample')
 else:
-    print('unknown sampling option')
+    print('ERROR: unknown sampling option')
     exit(0)
 
 # Define the discriminator and initialize the weights
 if opt.dataset == 'imagenet':
-    netD = _netD(ngpu, num_classes)
+    if opt.sn:
+        netD = _netD_SN(ngpu, num_classes)
+    else:
+        netD = _netD(ngpu, num_classes)
 else:
-    netD = _netD_CIFAR10(ngpu, num_classes)
+    if opt.sn:
+        netD = _netD_CIFAR10_SN(ngpu, num_classes)
+    else:
+        netD = _netD_CIFAR10(ngpu, num_classes)
+
 netD.apply(weights_init)
 if opt.netD != '':
     netD.load_state_dict(torch.load(opt.netD))
