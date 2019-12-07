@@ -28,7 +28,7 @@ from embedders import BERTEncoder
 
 from tensorboardX import SummaryWriter
 
-from data import CIFAR10Dataset, Imagenet32Dataset
+from data import CIFAR10Dataset, Imagenet32Dataset, get_coco_loader
 
 cifar_text_labels = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
 
@@ -50,7 +50,7 @@ parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
 parser.add_argument('--output_dir', default='.', help='folder to output images and model checkpoints')
-parser.add_argument('--manualSeed', type=int, help='manual seed')
+parser.add_argument('--manualSeed', default=777, type=int, help='manual seed')
 parser.add_argument('--embed_size', default=100, type=int, help='embed size')
 parser.add_argument('--num_classes', type=int, default=10, help='Number of classes for AC-GAN')
 parser.add_argument('--gpu_id', type=int, default=0, help='The ID of the specified GPU')
@@ -84,15 +84,19 @@ elif opt.dataset == "cifar10":
 #        ]))
     val_dataset = CIFAR10Dataset(train=0, max_size=1 if opt.debug else -1)
 elif opt.dataset == "coco":
+    print("INFO: using coco")
+    path2data="/home/ooo/Data/train2017"
+    path2json="/home/ooo/Data/annotations_trainval2017/annotations/captions_train2017.json"
     train_dataset = dset.CocoCaptions(
-        root=opt.dataroot, annFile=opt.annFile,
+        root=path2data, annFile=path2json,
         transform=transforms.Compose([
-            transforms.Scale(opt.imageSize),
+            #transforms.Scale(opt.imageSize),
+            transforms.Resize((opt.imageSize, opt.imageSize)),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]))
     val_dataset = dset.CocoCaptions(
-        root=opt.dataroot, annFile=opt.annFile,
+        root=path2data, annFile=path2json,
         transform=transforms.Compose([
             transforms.Scale(opt.imageSize),
             transforms.ToTensor(),
@@ -102,19 +106,34 @@ else:
     raise NotImplementedError("No such dataset {}".format(opt.dataset))
 
 print("creating dataloaders")
-train_dataloader = torch.utils.data.DataLoader(
-    train_dataset,
-    batch_size=opt.batchSize,
-    shuffle=True,
-    num_workers=int(opt.workers),
-)
-val_dataloader = torch.utils.data.DataLoader(
-    val_dataset,
-    #batch_size=opt.batchSize,
-    batch_size=100,
-    shuffle=False,
-    num_workers=int(opt.workers),
-)
+train_dataloader = None
+val_dataloader = None
+
+if opt.dataset == "coco":
+    path2data="/home/ooo/Data/train2017"
+    path2json="/home/ooo/Data/annotations_trainval2017/annotations/captions_train2017.json"
+    train_dataloader = get_coco_loader(path2data, path2json, 
+        transform=transforms.Compose([
+            #transforms.Scale(opt.imageSize),
+            transforms.Resize((opt.imageSize, opt.imageSize)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]), batch_size=opt.batchSize, shuffle=True, num_workers=int(opt.workers))
+    val_dataloader = train_dataloader
+else:
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=opt.batchSize,
+        shuffle=True,
+        num_workers=int(opt.workers),
+    )
+    val_dataloader = torch.utils.data.DataLoader(
+        val_dataset,
+        #batch_size=opt.batchSize,
+        batch_size=100,
+        shuffle=False,
+        num_workers=int(opt.workers),
+    )
 
 # specify the gpu id if using only 1 gpu
 if opt.ngpu == 1:
@@ -182,6 +201,8 @@ nc = 3
 # Define the generator and initialize the weights
 if opt.dataset == 'imagenet':
     netG = _netG(ngpu, nz)
+elif opt.dataset == 'coco':
+    netG = _netG(ngpu, nz)
 else:
     netG = _netG_CIFAR10(ngpu, nz)
 netG.apply(weights_init)
@@ -202,7 +223,7 @@ if opt.sample == 'noshuffle':
     sample_dataloader = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=sample_batch_size,
-        shuffle=False,
+        shuffle=True,
         num_workers=int(opt.workers),
     )
 
@@ -217,8 +238,14 @@ elif opt.sample == 'shuffle':
         eval_dataset = val_dataset
     elif opt.dataset == 'cifar10':
         eval_dataset = train_dataset
+    elif opt.dataset == 'coco':
+        eval_dataset = train_dataset
 
-    sample_batch_size = 100
+    sample_batch_size = opt.batchSize
+    sample_dataloader = None
+#    if opt.dataset == "coco":
+#        sample_dataloader = train_dataloader
+#    else:
     sample_dataloader = torch.utils.data.DataLoader(
         eval_dataset,
         batch_size=sample_batch_size,
@@ -237,6 +264,11 @@ else:
 
 # Define the discriminator and initialize the weights
 if opt.dataset == 'imagenet':
+    if opt.sn:
+        netD = _netD_SN(ngpu, num_classes)
+    else:
+        netD = _netD(ngpu, num_classes)
+elif opt.dataset == 'coco':
     if opt.sn:
         netD = _netD_SN(ngpu, num_classes)
     else:
@@ -300,7 +332,7 @@ avg_loss_G = 0.0
 avg_loss_A = 0.0
 for epoch in range(opt.n_epochs):
     if opt.dataset == 'cifar10':
-        sample_image(netG, encoder, 10, epoch, val_dataloader, opt)
+        sample_image(netG, encoder, opt.batchSize, 10, epoch, val_dataloader, opt)
 
     for i, data in enumerate(dataloader, 0):
         ############################
@@ -336,6 +368,9 @@ for epoch in range(opt.n_epochs):
             embedding = encoder(label, captions)
             embedding = embedding.detach().numpy()
         elif opt.dataset == 'imagenet':
+            embedding = encoder(label, captions)
+            embedding = embedding.detach().numpy()
+        elif opt.dataset == 'coco':
             embedding = encoder(label, captions)
             embedding = embedding.detach().numpy()
 
@@ -387,9 +422,12 @@ for epoch in range(opt.n_epochs):
                  errD.item(), avg_loss_D, errG.item(), avg_loss_G, D_x, D_G_z1, D_G_z2, accuracy, avg_loss_A))
 
         batches_done = epoch * len(dataloader) + i
-        writer.add_scalar('train/loss_d', avg_loss_D, batches_done)
-        writer.add_scalar('train/loss_g', avg_loss_G, batches_done)
-        writer.add_scalar('train/loss_a', avg_loss_A, batches_done)
+        writer.add_scalar('train/loss_d', errD.item(), batches_done)
+        writer.add_scalar('train/loss_g', errG.item(), batches_done)
+        writer.add_scalar('train/loss_a', accuracy, batches_done)
+        writer.add_scalar('train/avg_loss_d', avg_loss_D, batches_done)
+        writer.add_scalar('train/avg_loss_g', avg_loss_G, batches_done)
+        writer.add_scalar('train/avg_loss_a', avg_loss_A, batches_done)
 
         if opt.dataset == 'imagenet' and i % 100 == 0:
 #            vutils.save_image(real_cpu, os.path.join(opt.output_dir, 'samples', 'real_samples_{}.png'.format(epoch)))

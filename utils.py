@@ -90,12 +90,19 @@ def sample_image2(netG, encoder, target_n_samples, batch_size, dataloader, opt):
     n_samples = 0
     done = False
     while not done:
-        for (ori_img_batch, labels_batch, captions_batch) in dataloader:
+        #for (ori_img_batch, labels_batch, captions_batch) in dataloader:
+        for (ori_img_batch, captions_batch) in dataloader:
 
             eval_noise_ = np.random.normal(0, 1, (batch_size, opt.nz))
 
-            conditional_embeddings = encoder(labels_batch.to(device), captions_batch)
+            #conditional_embeddings = encoder(labels_batch.to(device), captions_batch)
+            #print(ori_img_batch.size())
+            #print(len(captions_batch))
+            #print(captions[0].size())
+            conditional_embeddings = encoder(None, captions_batch[0])
 
+            #print(conditional_embeddings.size())
+            #print((batch_size, opt.nz))
             embeddings = conditional_embeddings.detach().numpy()
             eval_noise_[np.arange(batch_size), :opt.embed_size] = embeddings[:, :opt.embed_size]
             eval_noise_ = (torch.from_numpy(eval_noise_))
