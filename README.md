@@ -27,3 +27,9 @@ Calculate FID:
 
 python3 fid_score.py -c 0 ../output/samples_gen/image ../output/samples_ori/image
 
+tensorboard --logdir_spec sn:output499_sn_cifar/tensorboard/,b1:output499_b1_cifar/tensorboard/
+To see both the logs, I should wait for a while and reopen the windows again
+
+
+
+
