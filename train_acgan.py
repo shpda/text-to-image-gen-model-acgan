@@ -57,6 +57,7 @@ parser.add_argument('--gpu_id', type=int, default=0, help='The ID of the specifi
 parser.add_argument('--debug', type=bool, default=False, help='Debugging')
 parser.add_argument('--sample', help='none | shuffle | noshuffle, sampling images for Inception Score or FID computation', default='none')
 parser.add_argument('--sn', type=bool, default=False, help='apply Spectral Norm')
+parser.add_argument('--wass', type=bool, default=False, help='apply Wassersten GAN')
 
 opt = parser.parse_args()
 print(opt)
@@ -388,8 +389,30 @@ for epoch in range(opt.n_epochs):
         aux_errD_fake = aux_criterion(aux_output, aux_label)
         errD_fake = dis_errD_fake + aux_errD_fake
         errD_fake.backward()
+
+        if opt.wass:
+            alpha = torch.rand(input.shape[0], 1, 1, 1, device='cuda')
+            #x_r = alpha * fake + (1 - alpha) * input
+            x_r = Variable(alpha * fake + (1 - alpha) * input, requires_grad=True)
+            d_r, _ = netD(x_r)
+
+            grad = torch.autograd.grad(d_r.sum(), x_r, create_graph=True, retain_graph=True)
+            grad_norm = grad[0].reshape(batch_size, -1).norm(dim=1)
+            errD_penalty = 10*((grad_norm - 1)**2).mean()
+
+            #errD_penalty.backward(retain_graph=True)
+            errD_penalty.backward()
+
+        #errD_total = dis_errD_real + dis_errD_fake + penalty + aux_errD_real + aux_errD_fake
+#?        errD_total = dis_errD_real + dis_errD_fake + aux_errD_real + aux_errD_fake
+#?        errD_total.backward()
+
         D_G_z1 = dis_output.data.mean()
+
         errD = errD_real + errD_fake
+        if opt.wass:
+            errD += errD_penalty
+
         optimizerD.step()
 
         ############################
@@ -401,6 +424,7 @@ for epoch in range(opt.n_epochs):
         dis_errG = dis_criterion(dis_output, dis_label)
         aux_errG = aux_criterion(aux_output, aux_label)
         errG = dis_errG + aux_errG
+        #errG.backward(retain_graph=True)
         errG.backward()
         D_G_z2 = dis_output.data.mean()
         optimizerG.step()
