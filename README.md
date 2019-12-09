@@ -20,8 +20,11 @@ gcloud compute scp ooo@pytorch-1-vm:~/text-to-image-gen-model-acgan/output/sampl
 
 Sample ImageNet:
 
-python3 train_acgan.py --output_dir=output --n_epochs=500 --batchSize=100 --cuda --dataset=imagenet --imageSize=32 --dataroot=datasets --gpu=0 --sample=noshuffle --netG=output/models/netG_epoch_24.pt
+python3 train_acgan.py --output_dir=output --n_epochs=500 --batchSize=100 --cuda --dataset=imagenet --num_classes=1000 --imageSize=32 --dataroot=datasets --gpu=0 --sample=noshuffle --netG=output/models/netG_epoch_24.pt
 
+Train ImageNet:
+
+python3 train_acgan.py --output_dir=output --n_epochs=500 --batchSize=500 --dataset=imagenet --num_classes=1000 --imageSize=32 --dataroot=datasets --cuda --gpu=0
 
 Calculate FID:
 
@@ -29,7 +32,5 @@ python3 fid_score.py -c 0 ../output/samples_gen/image ../output/samples_ori/imag
 
 tensorboard --logdir_spec sn:output499_sn_cifar/tensorboard/,b1:output499_b1_cifar/tensorboard/
 To see both the logs, I should wait for a while and reopen the windows again
-
-
 
 

@@ -130,8 +130,8 @@ else:
     )
     val_dataloader = torch.utils.data.DataLoader(
         val_dataset,
-        #batch_size=opt.batchSize,
-        batch_size=100,
+        batch_size=opt.batchSize,
+        #batch_size=100,
         shuffle=False,
         num_workers=int(opt.workers),
     )
@@ -466,7 +466,7 @@ for epoch in range(opt.n_epochs):
 #            print('Label for eval = {}'.format(eval_label))
 #            fake = netG(eval_noise)
 #            vutils.save_image(fake.data, os.path.join(opt.output_dir, 'samples', 'fake_samples_{}.png'.format(epoch)))
-            sample_image(netG, encoder, 10, batches_done, val_dataloader, opt)
+            sample_image(netG, encoder, opt.batchSize, 10, batches_done, val_dataloader, opt)
 
     # do checkpointing
     torch.save(netG.state_dict(), os.path.join(opt.output_dir, 'models', 'netG_epoch_{}.pt'.format(epoch)))
