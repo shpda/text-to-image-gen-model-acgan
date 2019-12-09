@@ -200,12 +200,15 @@ num_classes = int(opt.num_classes)
 nc = 3
 
 # Define the generator and initialize the weights
-if opt.dataset == 'imagenet':
-    netG = _netG(ngpu, nz)
-elif opt.dataset == 'coco':
-    netG = _netG(ngpu, nz)
-else:
-    netG = _netG_CIFAR10(ngpu, nz)
+#if opt.dataset == 'imagenet':
+#    netG = _netG(ngpu, nz)
+#elif opt.dataset == 'coco':
+#    netG = _netG(ngpu, nz)
+#else:
+#    netG = _netG_CIFAR10(ngpu, nz)
+
+netG = _netG_CIFAR10(ngpu, nz)
+
 netG.apply(weights_init)
 if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
@@ -264,21 +267,26 @@ else:
     exit(0)
 
 # Define the discriminator and initialize the weights
-if opt.dataset == 'imagenet':
-    if opt.sn:
-        netD = _netD_SN(ngpu, num_classes)
-    else:
-        netD = _netD(ngpu, num_classes)
-elif opt.dataset == 'coco':
-    if opt.sn:
-        netD = _netD_SN(ngpu, num_classes)
-    else:
-        netD = _netD(ngpu, num_classes)
+#if opt.dataset == 'imagenet':
+#    if opt.sn:
+#        netD = _netD_SN(ngpu, num_classes)
+#    else:
+#        netD = _netD(ngpu, num_classes)
+#elif opt.dataset == 'coco':
+#    if opt.sn:
+#        netD = _netD_SN(ngpu, num_classes)
+#    else:
+#        netD = _netD(ngpu, num_classes)
+#else:
+#    if opt.sn:
+#        netD = _netD_CIFAR10_SN(ngpu, num_classes)
+#    else:
+#        netD = _netD_CIFAR10(ngpu, num_classes)
+
+if opt.sn:
+    netD = _netD_CIFAR10_SN(ngpu, num_classes)
 else:
-    if opt.sn:
-        netD = _netD_CIFAR10_SN(ngpu, num_classes)
-    else:
-        netD = _netD_CIFAR10(ngpu, num_classes)
+    netD = _netD_CIFAR10(ngpu, num_classes)
 
 netD.apply(weights_init)
 if opt.netD != '':
